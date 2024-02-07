@@ -1,9 +1,12 @@
-extern crate nalgebra as na;
-extern crate proc_macro;
+
 use proc_macro::TokenStream;
-use syn::{punctuated::Punctuated, Expr, Token, parse_macro_input, parse::{Parse, ParseStream}, ExprField, Member};
+use syn::{punctuated::Punctuated, Expr, Token, parse_macro_input, parse::{Parse, ParseStream}, Ident, ExprField, Member, custom_punctuation};
 //#[macro_export]
 
+mod rightarrow;
+mod parser;
+
+use rightarrow::RightArrow;
 
 // #[proc_macro]
 // //TODO: implement throwing error if the data types suck
@@ -61,8 +64,9 @@ use syn::{punctuated::Punctuated, Expr, Token, parse_macro_input, parse::{Parse,
 //     };
 // }
 
+#[derive(Debug)]
 struct EinsumList {
-    pub token: Punctuated<ExprField, Token![,]>
+    pub token: Punctuated<Expr, Token![,]>
 }
 
 impl Parse for EinsumList {
@@ -73,14 +77,15 @@ impl Parse for EinsumList {
     }
 }
 
+#[derive(Debug)]
 struct EinsumInput {
-    pub token: Punctuated<EinsumList, Token![->]>
+    pub token: Punctuated<EinsumList, RightArrow>
 }
 
 impl Parse for EinsumInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(EinsumInput {
-            token: Punctuated::<EinsumList, Token![->]>::parse_terminated(input)?
+            token: Punctuated::<EinsumList, RightArrow>::parse_terminated(input)?
         })
     }
 }
@@ -100,8 +105,11 @@ impl Mat {
 
 #[proc_macro]
 pub fn einsum(input: TokenStream) -> TokenStream {
-    let mut input = parse_macro_input!(input as EinsumInput).token.into_iter();
+    let mut _input = parse_macro_input!(input as EinsumInput);//.token.into_iter();
 
+    println!("{_input:#?}");
+/*
+    let mut input = _input.token.into_iter();
     let input_tokens = input.next().unwrap().token.into_iter();
     let output_tokens = input.next().unwrap().token.into_iter();
 
@@ -119,9 +127,11 @@ pub fn einsum(input: TokenStream) -> TokenStream {
 
         input_mats.push(Mat::new(*mat_token.base, string));
     }
-
+*/
     // TODO: parse output_tokens like:
     // -> ijk, jk
+
+    
 
     todo!()
 }
