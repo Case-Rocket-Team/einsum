@@ -6,90 +6,38 @@ use syn::{punctuated::Punctuated, Expr, Token, parse_macro_input, parse::{Parse,
 mod rightarrow;
 mod parser;
 
+// TODO: Opt-einsum w expression
+
 use rightarrow::RightArrow;
-
-// #[proc_macro]
-// //TODO: implement throwing error if the data types suck
-// // let $s:expr = whatever is in the first slot
-// macro_rules! einsum {
-//     ( $s:expr, $( $x:expr ),* ) => {
-//         {
-//             //get information on what to do string
-//             println!("string:");
-//             println!($s);
-//             let mut info = String::from($s);
-
-//             //get each matrix
-//             let mut mat_vec: Vec<Matrix> = Vec::new();
-//             $(
-//                 println!("matrix:");
-//                 println!("{:?}",$x);
-//                 mat_vec.push($x);
-//             )*
-            
-//             //initiate 
-//             let subs_vec: Vec<&str> = info.split(',').collect();
-            
-//             println!("subscripts");
-//             println!("{:?}",subs_vec[0]);
-//             println!("{:?}",subs_vec[1]);
-            
-
-//             //get all the different unique axises we have to deal with
-//             let mut char_vec2:Vec<Vec<char>> = Vec::new();
-//             let mut dex = 0;
-//             let mut char_num_dex = 0;
-//             for subs in subs_vec{
-//                 let len = subs.chars().count()-1;
-//                 let total_len = info.chars().count()-1;
-//                 for char_num in 0..len{
-//                     let current = subs.chars().nth(char_num).unwrap();
-//                     let check_dex = 0;
-//                     for check_char_num in 0..total_len{
-//                         let test_char = info.chars().nth(check_dex).unwrap();
-//                         if current != test_char{
-//                             char_vec2[dex][char_num_dex] = current;
-//                             char_num_dex = char_num_dex + 1;
-//                         }
-//                     }
-//                 }
-//                 dex = dex + 1
-
-//             }
-
-
-
-
-//         }
-//     };
-// }
 
 #[derive(Debug)]
 struct EinsumList {
-    pub token: Punctuated<Expr, Token![,]>
+    pub tokens: Punctuated<ExprField, Token![,]>,
+    //pub mats: Vec<Mat>
 }
 
 impl Parse for EinsumList {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(EinsumList {
-            token: Punctuated::parse_separated_nonempty(input)?
+            tokens: Punctuated::parse_separated_nonempty(input)?
         })
     }
 }
 
 #[derive(Debug)]
 struct EinsumInput {
-    pub token: Punctuated<EinsumList, RightArrow>
+    pub tokens: Punctuated<EinsumList, RightArrow>
 }
 
 impl Parse for EinsumInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(EinsumInput {
-            token: Punctuated::<EinsumList, RightArrow>::parse_terminated(input)?
+            tokens: Punctuated::<EinsumList, RightArrow>::parse_terminated(input)?
         })
     }
 }
 
+#[derive(Debug)]
 struct Mat {
     pub expr: Expr,
     pub indices: String,
@@ -105,11 +53,11 @@ impl Mat {
 
 #[proc_macro]
 pub fn einsum(input: TokenStream) -> TokenStream {
-    let mut _input = parse_macro_input!(input as EinsumInput);//.token.into_iter();
+    let mut _input = parse_macro_input!(input as EinsumInput).tokens.into_iter();
 
-    println!("{_input:#?}");
-/*
-    let mut input = _input.token.into_iter();
+    todo!();
+
+    /*let mut input = _input.tokens.into_iter();
     let input_tokens = input.next().unwrap().token.into_iter();
     let output_tokens = input.next().unwrap().token.into_iter();
 
@@ -126,8 +74,8 @@ pub fn einsum(input: TokenStream) -> TokenStream {
         };
 
         input_mats.push(Mat::new(*mat_token.base, string));
-    }
-*/
+    }*/
+
     // TODO: parse output_tokens like:
     // -> ijk, jk
 
