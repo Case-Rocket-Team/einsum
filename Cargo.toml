@@ -1,16 +1,15 @@
+[workspace]
+members = ["einsum_impl"]
+
 [package]
-name = "nalgebra-einsum"
+name = "einsum"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nalgebra = "0.32.3"
-prettyplease = "0.2.16"
-quote = "1.0.35"
-syn = { version = "2.0.48", features = ["full", "extra-traits"] }
-
+einsum_impl = { path = "./einsum_impl" }
+rust-numpy = "0.1.0"
 
 [lib]
-proc_macro = true

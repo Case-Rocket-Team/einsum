@@ -1,5 +1,10 @@
 {
     "cSpell.words": [
         "punct"
+    ],
+    "rust-analyzer.linkedProjects": [
+        "./einsum-impl/Cargo.toml",
+        "./einsum_impl/Cargo.toml",
+        "./einsum_impl/Cargo.toml"
     ]
 }
