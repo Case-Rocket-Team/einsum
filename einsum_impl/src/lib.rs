@@ -4,8 +4,8 @@ use std::{collections::HashMap, fmt::format, io::{Read, Write}, iter::Map, proce
 
 use proc_macro::{Span, TokenStream};
 use proc_macro2::TokenStream as TokenStream2;
-use syn::{parse::{self, Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, spanned::Spanned, Error, Expr, ExprField, ExprTuple, Ident, Member, Token};
-use quote::{quote, ToTokens};
+use syn::{parse::{self, Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, spanned::Spanned, Error, Expr, ExprField, ExprTuple, Ident, Item, Member, Token};
+use quote::{format_ident, quote, ToTokens};
 
 macro_rules! expect_token_err {
     ($token:expr, $types:expr) => {
@@ -51,6 +51,13 @@ macro_rules! cast_expr_ref {
                 _ => expect_token_err!($token, stringify!(Expr::$ty))
             }
         }
+    };
+}
+
+// Get the name of this crate.
+macro_rules! thiscrate {
+    () => {
+        $crate
     };
 }
 
@@ -104,13 +111,6 @@ impl Mat {
 }
 
 #[derive(Debug)]
-struct EinsumArgs {
-    input: Vec<Mat>,
-    output: Vec<Mat>,
-    axes: HashMap<char, Axis>,
-}
-
-#[derive(Debug)]
 struct Axis {
     char: char,
     size: usize,
@@ -144,18 +144,28 @@ fn parse_mat_tuple(tuple: ExprTuple) -> Result<Vec<Mat>, Error> {
     tuple.elems.into_iter().map(|x| Mat::from_expr(x)).collect::<Result<Vec<Mat>, Error>>()
 }
 
+#[derive(Debug)]
+struct EinsumArgs {
+    crate_expr: Expr,
+    input: Vec<Mat>,
+    output: Vec<Mat>,
+    axes: HashMap<char, Axis>,
+}
+
 impl Parse for EinsumArgs {
     fn parse(input: ParseStream) -> parse::Result<Self> {
         let punct: Punctuated<ExprTuple, syn::token::Comma> = Punctuated::parse_terminated(input)?;
         let mut iter = punct.into_iter();
         let err = Error::new(input.span(), "Not enough args");
-        let [input_expr, output_expr, dims_expr] = [
+        let [crate_expr, input_expr, output_expr, dims_expr] = [
+            iter.next().ok_or(err.clone())?,
             iter.next().ok_or(err.clone())?,
             iter.next().ok_or(err.clone())?,
             iter.next().ok_or(err)?
         ];
 
         Ok(Self {
+            crate_expr: crate_expr.elems.first().ok_or(Error::new(crate_expr.span(), "Couldn't get first item of crate_expr"))?.clone(),
             input: parse_mat_tuple(input_expr)?,
             output: parse_mat_tuple(output_expr)?,
             axes: dims_expr.elems.iter().map(|x| {
@@ -206,7 +216,7 @@ fn do_einsum(args: &EinsumArgs) -> Result<TokenStream2, Error> {
     // Get the optimized contraction order.
     let opt = get_opt(&args)?;
 
-    let EinsumArgs { input, output, axes: dims } = args;
+    let EinsumArgs { crate_expr, input, output, axes: dims, .. } = args;
 
     let mut tokens: Vec<TokenStream2> = vec![];
 
@@ -237,10 +247,10 @@ fn do_einsum(args: &EinsumArgs) -> Result<TokenStream2, Error> {
 
     tokens.push(quote!{
         // Do this all on one line to avoid accidentally shadowing the variables.
-        let (#(#idents),*) = (#(#exprs),*);
     });
 
     let mut lhs = mats.iter().map(|x| x.id).collect::<Vec<usize>>();
+    let mut out_dim = vec![];
 
     for (mut i, mut j, contraction) in opt {
         if i > j {
@@ -267,9 +277,8 @@ fn do_einsum(args: &EinsumArgs) -> Result<TokenStream2, Error> {
             });
         }
 
-        // TODO: Allow more than just f64
         tokens.push(quote! {
-            let mut #out = ndarray::Array::zeros((#(#dim_tuple)*));
+            let mut #out = ndarray::Array::<T, _>::zeros((#(#dim_tuple)*));
         });
 
         mats.push(out);
@@ -279,6 +288,7 @@ fn do_einsum(args: &EinsumArgs) -> Result<TokenStream2, Error> {
         let b = &mats[lhs.remove(j - 1)];
         let out = &mats.last().unwrap();
         let out_axes = out.axes.chars().map(|x| dims.get(&x).expect("Internal error: no dim?"));
+        out_dim = out.axes.chars().map(|x| dims.get(&x).expect("Internal error: no dim?").size).collect();
 
         lhs.push(out.id);
 
@@ -319,9 +329,33 @@ fn do_einsum(args: &EinsumArgs) -> Result<TokenStream2, Error> {
     }
 
     let out = &mats[lhs[0]];
-    tokens.push(out.to_token_stream());
 
-    Ok(TokenStream2::from_iter(tokens))
+    let mut input_generics_defs = vec![];
+    let mut input_generics = vec![];
+    for i in 0..idents.len() {
+        let ident = format_ident!("I{}", i);
+        input_generics.push(ident.clone());
+        input_generics_defs.push(quote! {
+            #ident: ndarray::Dimension
+        });
+    }
+
+    let dim_len = out_dim.len();
+    let input_index_tys = input.iter().map(|x| (0..x.axes.len()).map(|_| quote!{usize}).collect::<Vec<_>>()).collect::<Vec<_>>();
+
+    let final_expr = quote! {
+        // Use a function for type inference.
+        #[inline]
+        fn __einsum_impl<T: #crate_expr::ArrayNumericType, #(#input_generics_defs),*>
+        (#(#idents: &ndarray::Array<T, #input_generics>),*) -> ndarray::Array<T, ndarray::Dim<[usize; #dim_len]>>
+        where #((#(#input_index_tys),*): ndarray::NdIndex<#input_generics>),* {
+            #(#tokens)*
+            #out
+        }
+        __einsum_impl(#(&#exprs),*)
+    };
+
+    Ok(final_expr.into())
 }
 
 fn get_opt(args: &EinsumArgs) -> Result<Vec<(usize, usize, String)>, Error> {

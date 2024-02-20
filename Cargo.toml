@@ -11,6 +11,7 @@ edition = "2021"
 [dependencies]
 einsum_impl = { path = "./einsum_impl" }
 ndarray = "0.15.6"
+num-traits = "0.2.18"
 rust-numpy = "0.1.0"
 
 [lib]
