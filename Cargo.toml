@@ -5,6 +5,11 @@ members = ["einsum_impl"]
 name = "einsum"
 version = "0.1.0"
 edition = "2021"
+authors = ["Serena Lynas", "Kyle White"]
+description = "A Rust implementation of `numpy`'s Einstein summation convention for the `ndarray` crate with compile-time path optimization."
+readme = "README.md"
+license = "ISC"
+repository = "https://github.com/Case-Rocket-Team/einsum"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

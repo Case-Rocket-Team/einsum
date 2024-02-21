@@ -10,9 +10,9 @@ where T: Copy + Clone + Zero + Mul<T, Output = Self> + Add<Self, Output = Self> 
 
 #[macro_export]
 macro_rules! einsum {
-    ($($in: expr),+ => $out: expr ; $($axis: ident $dim: literal),+) => {
+    /*($($in: expr),+ => $out: expr ; $($axis: ident $dim: literal),+) => {
         $crate::einsum_impl::einsum_impl!(($crate,), ($($in,)+), ($out,), ($(($axis, $dim),)+))
-    };
+    };*/
     ($($in: expr),+ => . $out: ident ; $($axis: ident $dim: literal),+) => {
         $crate::einsum_impl::einsum_impl!(($crate,), ($($in,)+), (_.$out,), ($(($axis, $dim),)+))
     }
