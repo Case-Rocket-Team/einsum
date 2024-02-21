@@ -1,10 +1,10 @@
 
 use core::fmt;
-use std::{collections::HashMap, fmt::format, io::{Read, Write}, iter::Map, process::{Command, Stdio}, vec, fmt::Display};
+use std::{collections::HashMap, io::Write, process::{Command, Stdio}, vec, fmt::Display};
 
 use proc_macro::{Span, TokenStream};
 use proc_macro2::TokenStream as TokenStream2;
-use syn::{parse::{self, Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, spanned::Spanned, Error, Expr, ExprField, ExprTuple, Ident, Item, Member, Token};
+use syn::{parse::{self, Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, spanned::Spanned, Error, Expr, ExprTuple, Ident, Member};
 use quote::{format_ident, quote, ToTokens};
 
 macro_rules! expect_token_err {
@@ -54,13 +54,6 @@ macro_rules! cast_expr_ref {
     };
 }
 
-// Get the name of this crate.
-macro_rules! thiscrate {
-    () => {
-        $crate
-    };
-}
-
 fn expr_ident_string(expr: &Expr) -> Result<String, Error> {
     match expr {
         Expr::Path(path) => {
@@ -78,18 +71,9 @@ fn expr_ident_string(expr: &Expr) -> Result<String, Error> {
 struct Mat {
     pub expr: Expr,
     pub axes: String,
-    pub id: Option<usize>,
 }
 
 impl Mat {
-    pub fn new(expr: Expr, axis: String) -> Self {
-        Self {
-            expr,
-            axes: axis,
-            id: None,
-        }
-    }
-
     pub fn from_expr(expr: Expr) -> Result<Self, Error> {
         let field = cast_expr!(expr, Field)?;
 
@@ -105,7 +89,6 @@ impl Mat {
         Ok(Self {
             expr,
             axes,
-            id: None,
         })
     }
 }
@@ -216,7 +199,7 @@ fn do_einsum(args: &EinsumArgs) -> Result<TokenStream2, Error> {
     // Get the optimized contraction order.
     let opt = get_opt(&args)?;
 
-    let EinsumArgs { crate_expr, input, output, axes: dims, .. } = args;
+    let EinsumArgs { crate_expr, input, output: _, axes: dims, .. } = args;
 
     let mut tokens: Vec<TokenStream2> = vec![];
 
