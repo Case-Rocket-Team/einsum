@@ -346,6 +346,7 @@ fn get_opt(args: &EinsumArgs) -> Result<Vec<(usize, usize, String)>, Error> {
     let str_input = input.iter().map(|x| x.axes.clone()).collect::<Vec<String>>().join(",");
     let str_output = output.iter().map(|x| x.axes.clone()).collect::<Vec<String>>().join(",");
     let opt_einsum_input = format!("{str_input}->{str_output}");
+    //creates the ij,jk -> ik string
 
     let mut dim_str = String::new();
 
@@ -372,6 +373,12 @@ fn get_opt(args: &EinsumArgs) -> Result<Vec<(usize, usize, String)>, Error> {
         .stderr(Stdio::piped())
         .spawn()
         .map_err(pyerr("Error while trying to spawn Python process"))?;
+
+    println!("dim_str");
+    println!("{}",dim_str);
+
+    println!("opt_einsum_input");
+    println!("{}",opt_einsum_input);
 
     let code = format!(r#"
 import opt_einsum as oe
@@ -420,5 +427,43 @@ print("\n".join([";".join([str(contraction[0][0]), str(contraction[0][1]), contr
         }   
     }
 
+    println!("custom contract expression");
+    custom_contract_expression(opt_einsum_input,dim_str);
+
     Ok(list)
+}
+
+
+fn custom_contract_expression(subscripts: String,shapes: String ){
+    //split up subscripts
+    let split_subscripts = subscripts.split("->");
+    let split_subscripts_arr = split_subscripts.collect::<Vec<&str>>();
+    let lhs = split_subscripts_arr[0];
+    let rhs = split_subscripts_arr[1];
+
+    let lhs_subscripts = lhs.split(",").collect::<Vec<&str>>();
+    let rhs_subscripts = rhs.split(",").collect::<Vec<&str>>();
+
+    println!("subscripts");
+    println!("{:?},{:?}",lhs_subscripts,rhs_subscripts);
+
+    //split up shapes
+
+    let mat_shapes_arr = shapes.split(",),").collect::<Vec<&str>>();
+    let mut mat_shapes_arr_final:Vec<String>=Vec::new();
+    for (i, arr) in mat_shapes_arr.iter().enumerate(){
+        let mut chars = arr.chars().peekable();
+        chars.next();
+        if(chars.peek().to_owned()=='('){
+
+        }
+        mat_shapes_arr_final.push(chars.collect());
+        //remove first char
+        println!("{:?}",mat_shapes_arr_final)
+
+    }
+
+
+
+
 }
